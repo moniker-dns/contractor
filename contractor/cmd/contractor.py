@@ -1,5 +1,7 @@
-# -*- coding: utf-8 -*-
-
+# Copyright 2013 Hewlett-Packard Development Company, L.P.
+#
+# Author: Kiall Mac Innes <kiall@hp.com>
+#
 # Licensed under the Apache License, Version 2.0 (the "License"); you may
 # not use this file except in compliance with the License. You may obtain
 # a copy of the License at
@@ -11,18 +13,16 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
+from __future__ import absolute_import
+from oslo.config import cfg
+from contractor import runner
+from contractor.openstack.common import log as logging
 
-"""
-test_contractor
-----------------------------------
+CONF = cfg.CONF
+CONF.set_default('debug', True)
+CONF.set_default('verbose', True)
 
-Tests for `contractor` module.
-"""
-
-from contractor.tests import base
-
-
-class TestContractor(base.TestCase):
-
-    def test_something(self):
-        pass
+def main(*args):
+    logging.setup('contractor')
+    r = runner.Runner(environment='aw2-2')
+    r.execute()

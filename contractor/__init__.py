@@ -13,7 +13,17 @@
 # under the License.
 
 import pbr.version
+from oslo.config import cfg
 
 
 __version__ = pbr.version.VersionInfo(
     'contractor').version_string()
+
+cfg.CONF.import_opt('default_log_levels', 'contractor.openstack.common.log')
+
+# Set some Oslo Log defaults
+cfg.CONF.set_default('default_log_levels',
+                     ['stevedore=WARN',
+                      'keystoneclient=INFO',
+                      'neutronclient=INFO'])
+

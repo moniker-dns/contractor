@@ -1,4 +1,6 @@
 *.py[cod]
+.venv
+*.sublime-workspace
 
 # C extensions
 *.so
@@ -49,3 +51,5 @@ ChangeLog
 # Editors
 *~
 .*.swp
+
+config.json
