@@ -24,6 +24,7 @@ cfg.CONF.import_opt('default_log_levels', 'contractor.openstack.common.log')
 # Set some Oslo Log defaults
 cfg.CONF.set_default('default_log_levels',
                      ['stevedore=WARN',
+                      'requests=WARN',
                       'keystoneclient=INFO',
-                      'neutronclient=INFO'])
-
+                      'neutronclient=INFO',
+                      'novaclient=DEBUG'])

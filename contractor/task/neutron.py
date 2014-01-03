@@ -290,3 +290,65 @@ class RouterInterfaceTask(NeutronTask):
                     pass
                 else:
                     raise
+
+class SecurityGroupTask(NeutronTask):
+    provides = 'security_group'
+    depends = []
+
+    def __init__(self, runner, environment):
+        super(SecurityGroupTask, self).__init__(runner, environment)
+
+        self.security_groups = {
+            'default': {
+                'description': 'Default Security Group'
+            }
+        }
+
+        roles_config = self.runner.config['roles']
+
+        for role_name in roles_config.keys():
+            self.security_groups[role_name] = {
+                'description': '%s instances' % role_name,
+            }
+
+    def introspect(self, store):
+        security_groups = self.ne_client.list_security_groups()['security_groups']
+
+        store['_os-network_security_groups'] = {s['name']: s for s in security_groups}
+
+        existing = set([s['name'] for s in security_groups])
+        expected = set(self.security_groups.keys())
+
+        self.to_create = expected.difference(existing)
+        self.to_update = expected.intersection(existing)
+        self.to_destroy = existing.difference(expected)
+
+        LOG.info('Security Group TODO - C(%d) U(%d) D(%d)',
+                 len(self.to_create),
+                 len(self.to_update),
+                 len(self.to_destroy))
+
+    def build(self, store):
+        LOG.info('Building %s security groups', len(self.to_create))
+
+        for name in self.to_create:
+            LOG.info('Building security group with name %s', name)
+
+            body = {
+                "security_group": {
+                    "name": name,
+                    "description": self.security_groups[name]['description'],
+                },
+            }
+
+            self.ne_client.create_security_group(body)
+
+    def destroy(self, store):
+        LOG.info('Destroying %s security groups', len(self.to_destroy))
+
+        for name in self.to_destroy:
+            LOG.info('Destroying security group with name %s', name)
+            security_group_id = store['_os-network_security_groups'][name]['id']
+
+            self.ne_client.delete_security_group(security_group_id)
+
