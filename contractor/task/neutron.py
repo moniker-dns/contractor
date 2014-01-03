@@ -17,6 +17,7 @@ import logging
 from contractor.task import base
 from keystoneclient.v2_0 import client as ks_client
 from neutronclient.v2_0 import client as ne_client
+from neutronclient.common import exceptions as ne_exceptions
 
 
 LOG = logging.getLogger(__name__)
@@ -37,6 +38,27 @@ class NeutronTask(base.Task):
             tenant_id=env_config['credentials'].get('project_id', None),
             region_name=env_config['credentials'].get('region_name', None),
         )
+
+    def _get_network_id_from_name(self, store, name):
+        for network in store['_os-networks_networks']:
+            if network['name'] == name:
+                return network['id']
+
+        raise Exception('BOOOO')
+
+    def _get_subnet_id_from_name(self, store, name):
+        for subnet in store['_os-subnets_subnets']:
+            if subnet['name'] == name:
+                return subnet['id']
+
+        raise Exception('BOOOO')
+
+    def _get_router_id_from_name(self, store, name):
+        for router in store['_os-routers_routers']:
+            if router['name'] == name:
+                return router['id']
+
+        raise Exception('BOOOO')
 
 
 class RouterTask(NeutronTask):
@@ -91,6 +113,7 @@ class RouterTask(NeutronTask):
                     self.ne_client.delete_router(router['id'])
                     LOG.info('Router %s with id %s destroyed', name,
                              router['id'])
+
 
 class NetworkTask(NeutronTask):
     provides = 'network'
@@ -171,13 +194,6 @@ class SubnetTask(NeutronTask):
 
         return subnets
 
-    def _get_network_id_from_name(self, store, name):
-        for network in store['_os-networks_networks']:
-            if network['name'] == name:
-                return network['id']
-
-        raise Exception('BOOOO')
-
     def introspect(self, store):
         subnets = self.ne_client.list_subnets()['subnets']
         store['_os-subnets_subnets'] = subnets
@@ -227,6 +243,50 @@ class SubnetTask(NeutronTask):
                     LOG.info('Subnet %s with id %s destroyed', name,
                              subnet['id'])
 
-class PortTask(NeutronTask):
-    provides = 'port'
-    depends = ['subnet']
+
+class RouterInterfaceTask(NeutronTask):
+    provides = 'router_interface'
+    depends = ['subnet', 'router']
+
+    def _parse_config(self):
+        router_interfaces = []
+
+        routers = self._get_environment_config()['routers']
+
+        for router_name, router in routers.items():
+            LOG.info("Found Router Name %s", router_name)
+            rsubnets = router.get('subnets', [])
+
+            for rsubnet in rsubnets:
+                LOG.info("Found Router Subnet %s", rsubnet)
+                router_interfaces.append((router_name, rsubnet, ))
+
+        return router_interfaces
+
+    def introspect(self, store):
+        ri_config = self._parse_config()
+
+        # TODO...
+        self.ri_to_create = ri_config
+        self.ri_to_update = []
+        self.ri_to_destroy = []
+
+        LOG.info('Router Interface TODO - C(%d) U(%d) D(%d)',
+                 len(self.ri_to_create),
+                 len(self.ri_to_update),
+                 len(self.ri_to_destroy))
+
+    def build(self, store):
+        for ri in self.ri_to_create:
+            router_id = self._get_router_id_from_name(store, ri[0])
+            subnet_id = self._get_subnet_id_from_name(store, ri[1])
+
+            body = {"subnet_id": subnet_id}
+
+            try:
+                self.ne_client.add_interface_router(router_id, body)
+            except ne_exceptions.NeutronClientException as e:
+                if 'Router already has a port on subnet' in str(e):
+                    pass
+                else:
+                    raise
