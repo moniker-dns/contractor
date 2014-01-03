@@ -15,7 +15,6 @@
 # under the License.
 import logging
 from contractor.task import base
-from keystoneclient.v2_0 import client as ks_client
 from neutronclient.v2_0 import client as ne_client
 from neutronclient.common import exceptions as ne_exceptions
 
@@ -301,14 +300,20 @@ class SecurityGroupTask(NeutronTask):
         self.security_groups = {
             'default': {
                 'description': 'Default Security Group'
+            },
+            'beachhead': {
+                'description': 'Beachhead Security Group'
             }
         }
 
-        roles_config = self.runner.config['roles']
+        defined_security_groups = set()
 
-        for role_name in roles_config.keys():
-            self.security_groups[role_name] = {
-                'description': '%s instances' % role_name,
+        defined_security_groups.update(self.runner.config['security_groups'].keys())
+        defined_security_groups.update(self.runner.config['roles'].keys())
+
+        for group_name in defined_security_groups:
+            self.security_groups[group_name] = {
+                'description': '%s instances' % group_name,
             }
 
     def introspect(self, store):
@@ -351,4 +356,20 @@ class SecurityGroupTask(NeutronTask):
             security_group_id = store['_os-network_security_groups'][name]['id']
 
             self.ne_client.delete_security_group(security_group_id)
+
+class SecurityGroupRuleTask(NeutronTask):
+    provides = 'security_group_rules'
+    depends = ['security_groups']
+
+    def __init__(self, runner, environment):
+        super(SecurityGroupRoleTask, self).__init__(runner, environment)
+
+
+    # def introspect(self, store):
+    #     pass
+
+    # def build(self, store):
+
+
+    # def destroy(self, store):
 
