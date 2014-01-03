@@ -161,8 +161,13 @@ class SubnetTask(NeutronTask):
         subnets = {}
         networks = self._get_environment_config()['networks']
 
-        for network in networks.values():
-            subnets.update(network.get('subnets', {}))
+        for network_name, network in networks.items():
+            nsubnets = network.get('subnets', {})
+
+            for nsubnet in nsubnets.values():
+                nsubnet['network'] = network_name
+
+            subnets.update(nsubnets)
 
         return subnets
 
