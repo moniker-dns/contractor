@@ -19,6 +19,7 @@ from contractor.task import base
 from keystoneclient.v2_0 import client as ks_client
 from novaclient.v1_1 import client as nv_client
 from neutronclient.common import exceptions as ne_exceptions
+from contractor.openstack.common import timeutils
 
 
 LOG = logging.getLogger(__name__)
@@ -110,6 +111,17 @@ class InstanceTask(NovaTask):
         self._build_update(store)
 
     def _build_create(self, store):
+        keypair = None
+
+        if len(self.to_create) > 0:
+            # Create a SSH Keypair
+            keypair_name = 'contractor-%s' % timeutils.utcnow_ts()
+
+            LOG.info('Creating keypair with name %s', keypair_name)
+
+            keypair = self.nv_client.keypairs.create(keypair_name)
+            store['_os-nova_instances-keypair'] = keypair
+
         LOG.info('Building %s instances', len(self.to_create))
 
         created_instances = []
@@ -131,6 +143,7 @@ class InstanceTask(NovaTask):
                 availability_zone=self.instances[name]['az'],
                 nics=nics,
                 security_groups=[self.instances[name]['role']],
+                keypair=store['_os-nova_instances-keypair'].id,
                 meta={
                     'environment': self.instances[name]['environment'],
                     'role': self.instances[name]['role'],
