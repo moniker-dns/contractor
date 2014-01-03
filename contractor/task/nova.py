@@ -49,9 +49,86 @@ class NovaTask(base.Task):
         raise Exception('BOOOO')
 
 
+class BeachheadTask(NovaTask):
+    provides = 'beachhead'
+    depends = ['router_interface', 'network', 'subnet', 'security_group']
+
+    def __init__(self, runner, environment):
+        super(BeachheadTask, self).__init__(runner, environment)
+
+        self.beachhead_config = self._get_environment_config()['beachhead']
+        self.networks_config = self._get_environment_config()['networks']
+
+    def build(self, store):
+        # Create the SSH Keypair
+        beachhead_name = 'beachhead-%s' % timeutils.utcnow_ts()
+
+        LOG.info('Creating keypair with name %s', beachhead_name)
+
+        keypair = self.nv_client.keypairs.create(beachhead_name)
+
+        # TODO(kiall): Remove me!!
+        LOG.info('Private Key: %s', keypair.private_key)
+
+        # Create the beachhead instance
+        nics = []
+        for network in self.networks_config.keys():
+            nics.append({
+                'net-id': self._get_network_id_from_name(store, network),
+            })
+
+        LOG.info('Creating beachhead instance with name %s', beachhead_name)
+
+        instance = self.nv_client.servers.create(
+            name=beachhead_name,
+            image=self.beachhead_config['image'],
+            flavor=self.beachhead_config['flavor'],
+            nics=nics,
+            security_groups=['default', 'beachhead'],
+            key_name=beachhead_name
+        )
+
+        # Allocate a Floating IP
+        LOG.info('Allocating floating IP for beachhead instance')
+        floating_ip = self.nv_client.floating_ips.create(
+            self.beachhead_config.get('floating_ip_pool', None),
+        )
+
+        LOG.info('Floating IP %s Allocated', floating_ip.ip)
+
+        # Block for the Beachhead instance to become active
+        while True:
+            instance = self.nv_client.servers.get(instance.id)
+            if instance.status == 'ACTIVE':
+                break
+
+        # Add the floating IP
+        instance.add_floating_ip(floating_ip.ip)
+
+        store['_os-nova_beachhead-keypair'] = keypair
+        store['_os-nova_beachhead-instance'] = instance
+        store['_os-nova_beachhead-floating_ip'] = floating_ip
+
+    def destroy(self, store):
+        LOG.info('Desytoying beachhead instance. key and floating ip')
+
+        # Delete the beachhead Instance
+        instance = store['_os-nova_beachhead-instance']
+        instance.delete()
+
+        # Delete the Floating IP
+        floating_ip = store['_os-nova_beachhead-floating_ip']
+        floating_ip.delete()
+
+        # Delete the SSH KeyPair
+        keypair = store['_os-nova_beachhead-keypair']
+        keypair.delete()
+
+
 class InstanceTask(NovaTask):
     provides = 'instance'
-    depends = ['router_interface', 'network', 'subnet', 'security_group']
+    depends = ['router_interface', 'network', 'subnet', 'security_group',
+               'beachhead']
 
     def __init__(self, runner, environment):
         super(InstanceTask, self).__init__(runner, environment)
@@ -61,8 +138,11 @@ class InstanceTask(NovaTask):
         roles_config = self.runner.config['roles']
 
         for role_name, role in roles_config.items():
-            image = role['image']
-            flavor = role['flavor']
+            image = role.get('image', None)
+            flavor = role.get('flavor', None)
+
+            if image is None or flavor is None:
+                LOG.warning('Skipping role %s, as there is no image and/or flavor', role_name)
 
             instances = role.get('instances', {}).get(environment, [])
 
@@ -111,17 +191,6 @@ class InstanceTask(NovaTask):
         self._build_update(store)
 
     def _build_create(self, store):
-        keypair = None
-
-        if len(self.to_create) > 0:
-            # Create a SSH Keypair
-            keypair_name = 'contractor-%s' % timeutils.utcnow_ts()
-
-            LOG.info('Creating keypair with name %s', keypair_name)
-
-            keypair = self.nv_client.keypairs.create(keypair_name)
-            store['_os-nova_instances-keypair'] = keypair
-
         LOG.info('Building %s instances', len(self.to_create))
 
         created_instances = []
@@ -143,7 +212,7 @@ class InstanceTask(NovaTask):
                 availability_zone=self.instances[name]['az'],
                 nics=nics,
                 security_groups=['default', self.instances[name]['role']],
-                keypair=store['_os-nova_instances-keypair'].id,
+                key_name=store['_os-nova_beachhead-keypair'].name,
                 meta={
                     'environment': self.instances[name]['environment'],
                     'role': self.instances[name]['role'],
