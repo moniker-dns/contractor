@@ -142,7 +142,7 @@ class InstanceTask(NovaTask):
                 flavor=self.instances[name]['flavor'],
                 availability_zone=self.instances[name]['az'],
                 nics=nics,
-                security_groups=[self.instances[name]['role']],
+                security_groups=['default', self.instances[name]['role']],
                 keypair=store['_os-nova_instances-keypair'].id,
                 meta={
                     'environment': self.instances[name]['environment'],
