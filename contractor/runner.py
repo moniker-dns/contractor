@@ -27,14 +27,14 @@ class Runner(object):
     tasks = None
     dag = None
 
-    def __init__(self, environment):
+    def __init__(self, config, environment):
         self.environment = environment
-        self._load_config()
+        self._load_config(config)
         self._load_tasks()
         self._build_dag()
 
-    def _load_config(self):
-        fh = open('config.json')
+    def _load_config(self, config):
+        fh = open(config)
         self.config = json.load(fh)
 
     def _load_tasks(self):

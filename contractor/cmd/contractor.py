@@ -24,5 +24,5 @@ CONF.set_default('verbose', True)
 
 def main(*args):
     logging.setup('contractor')
-    r = runner.Runner(environment='aw2-2')
+    r = runner.Runner(config='config-staging.json', environment='ae1-2')
     r.execute()
