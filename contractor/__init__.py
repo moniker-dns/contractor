@@ -27,4 +27,4 @@ cfg.CONF.set_default('default_log_levels',
                       'requests=WARN',
                       'keystoneclient=INFO',
                       'neutronclient=INFO',
-                      'novaclient=DEBUG'])
+                      'novaclient=INFO'])
