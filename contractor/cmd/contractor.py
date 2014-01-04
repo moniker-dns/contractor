@@ -14,13 +14,15 @@
 # License for the specific language governing permissions and limitations
 # under the License.
 from __future__ import absolute_import
-from oslo.config import cfg
-from contractor import runner
 from contractor.openstack.common import log as logging
+from contractor import runner
+from oslo.config import cfg
+
 
 CONF = cfg.CONF
 CONF.set_default('debug', True)
 CONF.set_default('verbose', True)
+
 
 def main(*args):
     logging.setup('contractor')

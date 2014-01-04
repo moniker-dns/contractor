@@ -13,13 +13,13 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-import logging
-import time
-from contractor.task import base
-from novaclient.v1_1 import client as nv_client
-from neutronclient.common import exceptions as ne_exceptions
 from contractor.openstack.common import timeutils
 from contractor import ssh
+from contractor.task import base
+import logging
+from novaclient.v1_1 import client as nv_client
+#from neutronclient.common import exceptions as ne_exceptions
+import time
 
 
 LOG = logging.getLogger(__name__)
@@ -157,7 +157,8 @@ class InstanceTask(NovaTask):
             flavor = role.get('flavor', None)
 
             if image is None or flavor is None:
-                LOG.warning('Skipping role %s, as there is no image and/or flavor', role_name)
+                LOG.warning('Skipping role %s, as there is no image and/or '
+                            'flavor', role_name)
 
             instances = role.get('instances', {}).get(environment, [])
 
@@ -211,8 +212,9 @@ class InstanceTask(NovaTask):
 
             nics = []
             for nic in self.instances[name]['nics']:
+                net_id = self._get_network_id_from_name(store, nic['network'])
                 nics.append({
-                    'net-id': self._get_network_id_from_name(store, nic['network']),
+                    'net-id': net_id,
                     'v4-fixed-ip': nic['fixed_ip'],
                 })
 
@@ -233,7 +235,8 @@ class InstanceTask(NovaTask):
             created_instances.append(instance)
 
         # Block for instances to become "active"
-        LOG.info('Blocking for %d instances to become ACTIVE', len(created_instances))
+        LOG.info('Blocking for %d instances to become ACTIVE',
+                 len(created_instances))
 
         i = 0
 
@@ -241,14 +244,19 @@ class InstanceTask(NovaTask):
             for instance in created_instances:
                 instance = self.nv_client.servers.get(instance.id)
 
-                LOG.info('Instance with name %s is %s', instance.name, instance.status)
+                LOG.info('Instance with name %s is %s', instance.name,
+                         instance.status)
 
                 if instance.status == 'ACTIVE':
                     # Add any floating IPs
                     for nic in self.instances[instance.name]['nics']:
                         if nic['floating_ip'] is not None:
-                            LOG.info('Attaching floating ip %s to instance with name %s', nic['floating_ip'], instance.name)
-                            instance.add_floating_ip(nic['floating_ip'], nic['fixed_ip'])
+                            LOG.info('Attaching floating ip %s to instance '
+                                     'with name %s', nic['floating_ip'],
+                                     instance.name)
+
+                            instance.add_floating_ip(nic['floating_ip'],
+                                                     nic['fixed_ip'])
 
                     i += 1
 

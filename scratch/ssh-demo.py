@@ -1,4 +1,19 @@
-from contractor.ssh import SSHConnection
+# Copyright 2013 Hewlett-Packard Development Company, L.P.
+#
+# Author: Kiall Mac Innes <kiall@hp.com>
+#
+# Licensed under the Apache License, Version 2.0 (the "License"); you may
+# not use this file except in compliance with the License. You may obtain
+# a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+# WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+# License for the specific language governing permissions and limitations
+# under the License.
+from contractor import ssh
 
 KEY = """
 -----BEGIN RSA PRIVATE KEY-----
@@ -30,29 +45,28 @@ bCh2ocA4pNYYfnqo+jhmHaXF0XxtsMeXllbHRz1SM/cReDAH0mtG4Oc=
 -----END RSA PRIVATE KEY-----
 """
 
-conn = SSHConnection('15.126.206.237', 'ubuntu', KEY)
+conn = ssh.SSHConnection('15.126.206.237', 'ubuntu', KEY)
 
-print "Is Connected? %r"  % conn.connected
+print("Is Connected? %r" % conn.connected)
 
 (stdout, stderr, ) = conn.execute('/usr/bin/whoami')
 
-print "Is Connected? %r"  % conn.connected
+print("Is Connected? %r" % conn.connected)
 
-print "Who am I? %s" % stdout.read(100)
+print("Who am I? %s" % stdout.read(100))
 
-print "Trying to tunnel :D"
+print("Trying to tunnel :D")
 
 lport = conn.tunnel('172.17.4.3')
 
 try:
-    conn2 = SSHConnection('127.0.0.1', 'ubuntu2', KEY, port=lport)
+    conn2 = ssh.SSHConnection('127.0.0.1', 'ubuntu2', KEY, port=lport)
 
     (stdout, stderr, ) = conn2.execute('/usr/bin/whoami')
 
-    print "Who am I? %s" % stdout.read(100)
-except:
+    print("Who am I? %s" % stdout.read(100))
+except Exception:
     pass
 finally:
     conn2.disconnect()
     conn.disconnect()
-

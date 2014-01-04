@@ -13,12 +13,12 @@
 # WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
 # License for the specific language governing permissions and limitations
 # under the License.
-import paramiko
-import logging
 import cStringIO
-import socket
+import logging
 import os
+import paramiko
 import select
+import socket
 import SocketServer
 import threading
 
@@ -67,7 +67,7 @@ class SSHConnection(object):
             raise Exception('SSH Authentication Failed')
         except paramiko.SSHException:
             raise Exception('Unknown SSH Exception')
-        except socket.error, e:
+        except socket.error:
             raise Exception('Unknown SSH Socket Error')
         else:
             self._connected = True
@@ -159,15 +159,15 @@ class _ForwardServer(SocketServer.ThreadingTCPServer):
 
 
 class _ForwardHandlerBase(SocketServer.BaseRequestHandler):
-     def handle(self):
+    def handle(self):
         try:
-            chan = self.ssh_transport.open_channel('direct-tcpip',
-                                                   (self.chain_host, self.chain_port),
-                                                   self.request.getpeername())
-        except Exception, e:
+            chan = self.ssh_transport.open_channel(
+                'direct-tcpip', (self.chain_host, self.chain_port),
+                self.request.getpeername())
+
+        except Exception as e:
             LOG.error('Incoming request to %s:%d failed: %s', self.chain_host,
-                                                              self.chain_port,
-                                                              repr(e))
+                      self.chain_port, repr(e))
             return
 
         if chan is None:
