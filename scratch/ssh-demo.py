@@ -1,4 +1,4 @@
-
+from contractor.ssh import SSHConnection
 
 KEY = """
 -----BEGIN RSA PRIVATE KEY-----

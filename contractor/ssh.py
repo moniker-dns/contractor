@@ -22,23 +22,35 @@ import select
 import SocketServer
 import threading
 
+
 LOG = logging.getLogger(__name__)
+DEFAULT_SSH_PORT = 22
 
 
 class SSHConnection(object):
-    def __init__(self, hostname, username, private_key, port=22):
+    def __init__(self, hostname, username, private_key, port=None):
+        self._connected = False
+        self._tunnels = []
+
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         self.hostname = hostname
-        self.port = port
+        self.port = port if port is not None else DEFAULT_SSH_PORT
         self.username = username
+        self.private_key = self._get_private_key(private_key)
 
-        pk_fk = cStringIO.StringIO(private_key)
-        self.private_key = paramiko.RSAKey.from_private_key(pk_fk)
+    def _get_private_key(self, private_key):
+        if isinstance(private_key, basestring):
+            private_key = cStringIO.StringIO(private_key)
 
-        self._connected = False
-        self._tunnels = []
+        for cls in (paramiko.rsakey.RSAKey, paramiko.dsskey.DSSKey):
+            try:
+                return cls.from_private_key(private_key)
+            except paramiko.SSHException:
+                pass
+
+        raise Exception('Invalid private key')
 
     def connect(self):
         try:
@@ -101,13 +113,13 @@ class SSHConnection(object):
 
         return (stdout, stderr, )
 
-    def tunnel(self, hostname, port=22):
+    def tunnel(self, hostname, port=None):
         if not self.connected:
             self.connect()
 
         class _ForwardHandler(_ForwardHandlerBase):
             chain_host = hostname
-            chain_port = port
+            chain_port = port if port is not None else DEFAULT_SSH_PORT
             ssh_transport = self.client.get_transport()
 
         local_port = 9002
