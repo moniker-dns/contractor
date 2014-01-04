@@ -9,3 +9,4 @@ stevedore
 
 # Extras
 py_sdag2
+paramiko>=1.12.0

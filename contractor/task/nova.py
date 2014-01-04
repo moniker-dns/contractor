@@ -20,6 +20,7 @@ from keystoneclient.v2_0 import client as ks_client
 from novaclient.v1_1 import client as nv_client
 from neutronclient.common import exceptions as ne_exceptions
 from contractor.openstack.common import timeutils
+from contractor import ssh
 
 
 LOG = logging.getLogger(__name__)
@@ -105,11 +106,28 @@ class BeachheadTask(NovaTask):
         # Add the floating IP
         instance.add_floating_ip(floating_ip.ip)
 
+        # Give the Floating IP some time to become active
+        time.sleep(2)
+
+        LOG.info('Connecting to the beachhead instance')
+
+        connection = ssh.SSHConnection(floating_ip.ip,
+                                       'ubuntu',
+                                       keypair.private_key)
+
+
         store['_os-nova_beachhead-keypair'] = keypair
         store['_os-nova_beachhead-instance'] = instance
         store['_os-nova_beachhead-floating_ip'] = floating_ip
+        store['_os-nova_beachhead-connection'] = connection
+
 
     def destroy(self, store):
+        LOG.info('Disconnecting from beachhead instance')
+
+        connection = store['_os-nova_beachhead-connection']
+        connection.disconnect()
+
         LOG.info('Desytoying beachhead instance. key and floating ip')
 
         # Delete the beachhead Instance
