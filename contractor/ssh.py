@@ -52,11 +52,11 @@ class SSHConnection(object):
         except paramiko.BadHostKeyException:
             raise Exception('This should never happen')
         except paramiko.AuthenticationException:
-            raise Exception('Authentication Failed')
+            raise Exception('SSH Authentication Failed')
         except paramiko.SSHException:
             raise Exception('Unknown SSH Exception')
         except socket.error, e:
-            raise Exception('Unknown Socket Error')
+            raise Exception('Unknown SSH Socket Error')
         else:
             self._connected = True
 
@@ -80,6 +80,7 @@ class SSHConnection(object):
     def connected(self):
         if self._connected:
             try:
+                # Are we *really* connected??
                 self.client.exec_command('/bin/pwd')
             except paramiko.SSHException:
                 self._connected = False

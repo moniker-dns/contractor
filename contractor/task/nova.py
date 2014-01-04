@@ -16,7 +16,6 @@
 import logging
 import time
 from contractor.task import base
-from keystoneclient.v2_0 import client as ks_client
 from novaclient.v1_1 import client as nv_client
 from neutronclient.common import exceptions as ne_exceptions
 from contractor.openstack.common import timeutils
@@ -43,7 +42,7 @@ class NovaTask(base.Task):
         )
 
     def _get_network_id_from_name(self, store, name):
-        for network in store['_os-networks_networks']:
+        for network in store['_os-neutron_networks']:
             if network['name'] == name:
                 return network['id']
 
@@ -61,9 +60,9 @@ class BeachheadTask(NovaTask):
         self.networks_config = self._get_environment_config()['networks']
 
     def build(self, store):
-        # Create the SSH Keypair
         beachhead_name = 'beachhead-%s' % timeutils.utcnow_ts()
 
+        # Create the SSH Keypair
         LOG.info('Creating keypair with name %s', beachhead_name)
 
         keypair = self.nv_client.keypairs.create(beachhead_name)
@@ -115,12 +114,10 @@ class BeachheadTask(NovaTask):
                                        'ubuntu',
                                        keypair.private_key)
 
-
         store['_os-nova_beachhead-keypair'] = keypair
         store['_os-nova_beachhead-instance'] = instance
         store['_os-nova_beachhead-floating_ip'] = floating_ip
         store['_os-nova_beachhead-connection'] = connection
-
 
     def destroy(self, store):
         LOG.info('Disconnecting from beachhead instance')
@@ -205,10 +202,6 @@ class InstanceTask(NovaTask):
                  len(self.to_destroy))
 
     def build(self, store):
-        self._build_create(store)
-        self._build_update(store)
-
-    def _build_create(self, store):
         LOG.info('Building %s instances', len(self.to_create))
 
         created_instances = []
@@ -263,10 +256,8 @@ class InstanceTask(NovaTask):
 
         LOG.info('All newly created instances ACTIVE')
 
-        store['_os-nova_instances'].update({i.name: i for i in created_instances})
-
-    def _build_update(self, store):
-        pass
+        store['_os-nova_created-instances'] = {i.name: i for i in created_instances}
+        store['_os-nova_instances'].update(store['_os-nova_created-instances'])
 
     def destroy(self, store):
         LOG.info('Destroying %s instances', len(self.to_destroy))

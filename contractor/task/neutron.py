@@ -39,21 +39,21 @@ class NeutronTask(base.Task):
         )
 
     def _get_network_id_from_name(self, store, name):
-        for network in store['_os-networks_networks']:
+        for network in store['_os-neutron_networks']:
             if network['name'] == name:
                 return network['id']
 
         raise Exception('BOOOO')
 
     def _get_subnet_id_from_name(self, store, name):
-        for subnet in store['_os-subnets_subnets']:
+        for subnet in store['_os-neutron_subnets']:
             if subnet['name'] == name:
                 return subnet['id']
 
         raise Exception('BOOOO')
 
     def _get_router_id_from_name(self, store, name):
-        for router in store['_os-routers_routers']:
+        for router in store['_os-neutron_routers']:
             if router['name'] == name:
                 return router['id']
 
@@ -70,7 +70,7 @@ class RouterTask(NeutronTask):
 
     def introspect(self, store):
         routers = self.ne_client.list_routers()['routers']
-        store['_os-routers_routers'] = routers
+        store['_os-neutron_routers'] = routers
 
         existing_routers = set([r['name'] for r in routers])
         expected_routers = set(self._get_environment_config()['routers'].keys())
@@ -101,13 +101,13 @@ class RouterTask(NeutronTask):
 
             resp = self.ne_client.create_router(body=body)
             LOG.info('Router %s created with id %s', name, resp['router']['id'])
-            store['_os-routers_routers'].append(resp['router'])
+            store['_os-neutron_routers'].append(resp['router'])
 
     def destroy(self, store):
         for name in self.routers_to_destroy:
             LOG.info('Destroying router %s', name)
 
-            for router in store['_os-routers_routers']:
+            for router in store['_os-neutron_routers']:
                 if router['name'] == name:
                     self.ne_client.delete_router(router['id'])
                     LOG.info('Router %s with id %s destroyed', name,
@@ -124,7 +124,7 @@ class NetworkTask(NeutronTask):
 
     def introspect(self, store):
         networks = self.ne_client.list_networks()['networks']
-        store['_os-networks_networks'] = networks
+        store['_os-neutron_networks'] = networks
 
         existing_networks = set([n['name'] for n in networks])
         expected_networks = set(self._get_environment_config()['networks'].keys())
@@ -154,7 +154,7 @@ class NetworkTask(NeutronTask):
 
             resp = self.ne_client.create_network(body=body)
             LOG.info('Network %s created with id %s', name, resp['network']['id'])
-            store['_os-networks_networks'].append(resp['network'])
+            store['_os-neutron_networks'].append(resp['network'])
 
     def destroy(self, store):
         for name in self.networks_to_destroy:
@@ -164,7 +164,7 @@ class NetworkTask(NeutronTask):
 
             LOG.info('Destroying network %s', name)
 
-            for network in store['_os-networks_networks']:
+            for network in store['_os-neutron_networks']:
                 if network['name'] == name:
                     self.ne_client.delete_network(network['id'])
                     LOG.info('Network %s with id %s destroyed', name,
@@ -195,7 +195,7 @@ class SubnetTask(NeutronTask):
 
     def introspect(self, store):
         subnets = self.ne_client.list_subnets()['subnets']
-        store['_os-subnets_subnets'] = subnets
+        store['_os-neutron_subnets'] = subnets
 
         existing_subnets = set([s['name'] for s in subnets])
         expected_subnets = set(self._get_subnets_from_config().keys())
@@ -230,13 +230,13 @@ class SubnetTask(NeutronTask):
 
             resp = self.ne_client.create_subnet(body=body)
             LOG.info('Subnet %s created with id %s', name, resp['subnet']['id'])
-            store['_os-subnets_subnets'].append(resp['subnet'])
+            store['_os-neutron_subnets'].append(resp['subnet'])
 
     def destroy(self, store):
         for name in self.subnets_to_destroy:
             LOG.info('Destroying subnet %s', name)
 
-            for subnet in store['_os-subnets_subnets']:
+            for subnet in store['_os-neutron_subnets']:
                 if subnet['name'] == name:
                     self.ne_client.delete_subnet(subnet['id'])
                     LOG.info('Subnet %s with id %s destroyed', name,
@@ -319,7 +319,7 @@ class SecurityGroupTask(NeutronTask):
     def introspect(self, store):
         security_groups = self.ne_client.list_security_groups()['security_groups']
 
-        store['_os-network_security_groups'] = {s['name']: s for s in security_groups}
+        store['_os-neutron_security_groups'] = {s['name']: s for s in security_groups}
 
         existing = set([s['name'] for s in security_groups])
         expected = set(self.security_groups.keys())
@@ -353,7 +353,7 @@ class SecurityGroupTask(NeutronTask):
 
         for name in self.to_destroy:
             LOG.info('Destroying security group with name %s', name)
-            security_group_id = store['_os-network_security_groups'][name]['id']
+            security_group_id = store['_os-neutron_security_groups'][name]['id']
 
             self.ne_client.delete_security_group(security_group_id)
 
@@ -364,12 +364,11 @@ class SecurityGroupRuleTask(NeutronTask):
     def __init__(self, runner, environment):
         super(SecurityGroupRoleTask, self).__init__(runner, environment)
 
+    def introspect(self, store):
+        pass
 
-    # def introspect(self, store):
-    #     pass
+    def build(self, store):
+        pass
 
-    # def build(self, store):
-
-
-    # def destroy(self, store):
-
+    def destroy(self, store):
+        pass
