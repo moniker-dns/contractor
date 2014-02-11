@@ -18,25 +18,34 @@
 class Task(object):
     provides = None
     depends = []
+    rdepends = []
 
-    def __init__(self, runner, environment):
+    def __init__(self, runner, environment, store):
         self.runner = runner
         self.environment = environment
+        self.store = store
 
     def _get_environment_config(self):
         return self.runner.config['environments'][self.environment]
 
-    def introspect(self, store):
+    @property
+    def enabled(self):
+        return True
+
+    def introspect(self):
         pass
 
-    def build(self, store):
+    def validate(self):
         pass
 
-    def comission(self, store):
+    def build(self):
         pass
 
-    def decomission(self, store):
+    def comission(self):
         pass
 
-    def destroy(self, store):
+    def decomission(self):
+        pass
+
+    def destroy(self):
         pass

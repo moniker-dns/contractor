@@ -16,8 +16,7 @@ from oslo.config import cfg
 import pbr.version
 
 
-__version__ = pbr.version.VersionInfo(
-    'contractor').version_string()
+__version__ = pbr.version.VersionInfo('contractor').version_string()
 
 cfg.CONF.import_opt('default_log_levels', 'contractor.openstack.common.log')
 

@@ -22,13 +22,11 @@ LOG = logging.getLogger(__name__)
 
 
 class Runner(object):
-    environment = None
-    config = None
-    tasks = None
-    dag = None
-
     def __init__(self, config, environment):
+        self.store = {}
+
         self.environment = environment
+
         self._load_config(config)
         self._load_tasks()
         self._build_dag()
@@ -38,13 +36,12 @@ class Runner(object):
         self.config = json.load(fh)
 
     def _load_tasks(self):
-        self.tasks = {}
+        self.task_classes = {}
 
         def _load_task(ext):
             LOG.debug('Loading task: %s (Provides: %s, Depends: %r)', ext.name,
                       ext.plugin.provides, ext.plugin.depends)
-            task = ext.plugin(self, self.environment)
-            self.tasks[ext.plugin.provides] = task
+            self.task_classes[ext.plugin.provides] = ext.plugin
 
         mgr = extension.ExtensionManager(
             namespace='contractor.tasks',
@@ -58,64 +55,81 @@ class Runner(object):
         self.dag = sdag2.DAG()
         vertices = {}
 
-        for name in self.tasks.keys():
+        for name in self.task_classes.keys():
             vertices[name] = self.dag.add(name)
 
         # Iterate the tasks, adding edges where necessary
-        for name, task in self.tasks.items():
+        for name, task in self.task_classes.items():
+            # Add ordinary depends
             for depend in task.depends:
                 self.dag.add_edge(depend, name)
 
+            # Add reverse depends
+            for rdepend in task.rdepends:
+                self.dag.add_edge(name, rdepend)
+
     def execute(self):
-        store = {}
+        self.tasks = {}
 
         topo = self.dag.topologicaly()
 
-        self._execute_introspect(topo, store)
-        self._execute_build(topo, store)
-        self._execute_comission(topo, store)
+        LOG.info('Task execution order: %s', topo)
+
+        for name in topo:
+            LOG.debug('Initializing task: %s', name)
+            task = self.task_classes[name](self, self.environment, self.store)
+            self.tasks[name] = task
+
+        self._execute_introspect(topo)
+        self._execute_build(topo)
+        self._execute_comission(topo)
 
         topo.reverse()
 
-        self._execute_decomission(topo, store)
-        self._execute_destroy(topo, store)
+        self._execute_decomission(topo)
+        self._execute_destroy(topo)
 
-    def _execute_introspect(self, topo, store):
+    def _execute_introspect(self, topo):
         LOG.info('Executing introspect phase')
 
         for name in topo:
             task = self.tasks[name]
-            LOG.info('Running introspect for task: %s', name)
-            task.introspect(store)
+            if task.enabled:
+                LOG.info('Running introspect for task: %s', name)
+                task.introspect()
 
-    def _execute_build(self, topo, store):
+    def _execute_build(self, topo):
         LOG.info('Executing build phase')
 
         for name in topo:
             task = self.tasks[name]
-            LOG.info('Running build for task: %s', name)
-            task.build(store)
+            if task.enabled:
+                LOG.info('Running build for task: %s', name)
+                task.build()
 
-    def _execute_comission(self, topo, store):
+    def _execute_comission(self, topo):
         LOG.info('Executing comission phase')
 
         for name in topo:
             task = self.tasks[name]
-            LOG.info('Running comission for task: %s', name)
-            task.comission(store)
+            if task.enabled:
+                LOG.info('Running comission for task: %s', name)
+                task.comission()
 
-    def _execute_decomission(self, topo, store):
+    def _execute_decomission(self, topo):
         LOG.info('Executing decomission phase')
 
         for name in topo:
             task = self.tasks[name]
-            LOG.info('Running decomission for task: %s', name)
-            task.decomission(store)
+            if task.enabled:
+                LOG.info('Running decomission for task: %s', name)
+                task.decomission()
 
-    def _execute_destroy(self, topo, store):
+    def _execute_destroy(self, topo):
         LOG.info('Executing destroy phase')
 
         for name in topo:
             task = self.tasks[name]
-            LOG.info('Running destroy for task: %s', name)
-            task.destroy(store)
+            if task.enabled:
+                LOG.info('Running destroy for task: %s', name)
+                task.destroy()
