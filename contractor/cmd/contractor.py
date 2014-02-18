@@ -26,5 +26,5 @@ CONF.set_default('verbose', True)
 
 def main(*args):
     logging.setup('contractor')
-    r = runner.Runner(config='config-production.json', environment='ae1-2')
+    r = runner.Runner(config='contractor.json', environment='rnd')
     r.execute()
