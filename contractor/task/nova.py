@@ -49,99 +49,10 @@ class NovaTask(base.Task):
         raise Exception('Failed to find network with name: %s', name)
 
 
-class BeachheadTask(NovaTask):
-    provides = 'beachhead'
-    depends = ['router_interface', 'network', 'subnet', 'security_group',
-               'keypair']
-
-    def __init__(self, runner, environment, store):
-        super(BeachheadTask, self).__init__(runner, environment, store)
-
-        env_config = self._get_environment_config()
-
-        self.beachhead_config = env_config.get('beachhead', None)
-        self.networks_config = env_config.get('networks', {})
-
-    @property
-    def enabled(self):
-        return self.beachhead_config != None
-
-    def build(self):
-        beachhead_name = 'beachhead-%s' % timeutils.utcnow_ts()
-
-        # Create the beachhead instance
-        nics = []
-        for network in self.networks_config.keys():
-            nics.append({
-                'net-id': self._get_network_id_from_name(network),
-            })
-
-        LOG.info('Creating beachhead instance with name %s', beachhead_name)
-
-        instance = self.nv_client.servers.create(
-            name=beachhead_name,
-            image=self.beachhead_config['image'],
-            flavor=self.beachhead_config['flavor'],
-            nics=nics,
-            security_groups=['default', 'beachhead'],
-            key_name=self.beachhead_config['keypair'],
-            meta={
-                'beachhead': 'true'
-            },
-        )
-
-        # Allocate a Floating IP
-        LOG.info('Allocating floating IP for beachhead instance')
-        floating_ip = self.nv_client.floating_ips.create(
-            self.beachhead_config.get('floating_ip_pool', None),
-        )
-
-        LOG.info('Floating IP %s Allocated', floating_ip.ip)
-
-        # Block for the Beachhead instance to become active
-        while True:
-            instance = self.nv_client.servers.get(instance.id)
-            if instance.status == 'ACTIVE':
-                break
-
-        # Add the floating IP
-        instance.add_floating_ip(floating_ip.ip)
-
-        # Give the Floating IP some time to become active
-        time.sleep(2)
-
-        LOG.info('Connecting to the beachhead instance')
-
-        connection = ssh.SSHConnection(floating_ip.ip,
-                                       'ubuntu')
-
-        self.store['_os-nova_beachhead-instance'] = instance
-        self.store['_os-nova_beachhead-floating_ip'] = floating_ip
-        self.store['_os-nova_beachhead-connection'] = connection
-
-    def destroy(self):
-        connection = self.store['_os-nova_beachhead-connection']
-        instance = self.store['_os-nova_beachhead-instance']
-        floating_ip = self.store['_os-nova_beachhead-floating_ip']
-
-        # Disconnect from the beachhead instance
-        LOG.info('Disconnecting from beachhead instance')
-        connection.disconnect()
-
-        # Delete the beachhead Instance
-        LOG.info('Destroying beachhead instance with id: %s', instance.id)
-        instance.delete()
-
-        # Delete the Floating IP
-        LOG.info('Destroying beachhead floating ip with id: %s',
-                 floating_ip.id)
-        floating_ip.delete()
-
-
 class InstanceTask(NovaTask):
     provides = 'instance'
     depends = ['router_interface', 'network', 'subnet', 'security_group',
-               'beachhead', 'keypair']
+               'keypair']
 
     def __init__(self, runner, environment, store):
         super(InstanceTask, self).__init__(runner, environment, store)
@@ -337,10 +248,9 @@ class KeyPairTask(NovaTask):
             LOG.info('Creating keypair %s : %s', name, self.store['keypairs'][name]['public_key'])
             self.nv_client.keypairs.create(name, self.store['keypairs'][name]['public_key'])
 
-
-
     def destroy(self):
         LOG.info('Deleting %s keypairs', len(self.to_destroy))
+
         for name in self.to_destroy:
             LOG.info('Deleting keypair %s', name)
             self.nv_client.keypairs.delete(name)
