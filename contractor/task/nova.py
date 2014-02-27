@@ -215,7 +215,8 @@ class KeyPairTask(NovaTask):
         self.store['keypairs'] = {}
 
         env_config = self._get_environment_config()
-        keypair_config = env_config['keypairs']
+        keypair_config = env_config.get('keypairs', {})
+
         for keypair_name, keypair in keypair_config.items():
             self.store['keypairs'][keypair_name] = {
                 'public_key' : keypair.get('public_key')
