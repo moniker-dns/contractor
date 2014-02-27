@@ -51,7 +51,8 @@ class NovaTask(base.Task):
 
 class BeachheadTask(NovaTask):
     provides = 'beachhead'
-    depends = ['router_interface', 'network', 'subnet', 'security_group']
+    depends = ['router_interface', 'network', 'subnet', 'security_group',
+               'keypair']
 
     def __init__(self, runner, environment, store):
         super(BeachheadTask, self).__init__(runner, environment, store)
@@ -140,7 +141,7 @@ class BeachheadTask(NovaTask):
 class InstanceTask(NovaTask):
     provides = 'instance'
     depends = ['router_interface', 'network', 'subnet', 'security_group',
-               'beachhead']
+               'beachhead', 'keypair']
 
     def __init__(self, runner, environment, store):
         super(InstanceTask, self).__init__(runner, environment, store)
@@ -270,6 +271,7 @@ class InstanceTask(NovaTask):
 
         for instance in created_instances:
             # Add any floating IPs
+
             for nic in self.store['instances'][instance.name]['nics']:
                 if nic['floating_ip'] is not None:
                     LOG.info('Attaching floating ip %s to instance %s (%s)',
@@ -290,3 +292,55 @@ class InstanceTask(NovaTask):
 
             server = self.store['_os-nova_instances'].get(name)
             server.delete()
+
+
+class KeyPairTask(NovaTask):
+    provides = 'keypair'
+    depends = []
+
+    def __init__(self, runner, environment, store):
+        super(KeyPairTask, self).__init__(runner, environment, store)
+
+        self.store['keypairs'] = {}
+
+        env_config = self._get_environment_config()
+        keypair_config = env_config['keypairs']
+        for keypair_name, keypair in keypair_config.items():
+            self.store['keypairs'][keypair_name] = {
+                'public_key' : keypair.get('public_key')
+            }
+
+    def introspect(self):
+        keypairs = self.nv_client.keypairs.list()
+        existing = set([k.name for k in keypairs])
+
+        LOG.info('Existing: %s', keypairs)
+        LOG.info('Existing: %s', existing)
+
+        expected = set(self.store['keypairs'].keys())
+
+        LOG.info('Expected: %s', expected)
+
+        self.to_create = expected.difference(existing)
+        self.to_update = expected.intersection(existing)
+        self.to_destroy = existing.difference(expected)
+
+        LOG.info('KeyPair TODO - C(%d) U(%d) D(%d)',
+                 len(self.to_create),
+                 len(self.to_update),
+                 len(self.to_destroy))
+
+    def build(self):
+        LOG.info('Creating %s keypairs', len(self.to_create))
+
+        for name in self.to_create:
+            LOG.info('Creating keypair %s : %s', name, self.store['keypairs'][name]['public_key'])
+            self.nv_client.keypairs.create(name, self.store['keypairs'][name]['public_key'])
+
+
+
+    def destroy(self):
+        LOG.info('Deleting %s keypairs', len(self.to_destroy))
+        for name in self.to_destroy:
+            LOG.info('Deleting keypair %s', name)
+            self.nv_client.keypairs.delete(name)

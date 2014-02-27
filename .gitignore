@@ -1,6 +1,7 @@
 *.py[cod]
 .venv
 config*.json
+contractor.json
 
 # C extensions
 *.so
