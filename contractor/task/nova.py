@@ -158,17 +158,18 @@ class InstanceTask(NovaTask):
         LOG.info('Waiting for %d instances to become ACTIVE',
                  len(created_instances))
 
-        i = 0
+        pending_instances = [i.id for i in created_instances]
 
-        while i < len(created_instances):
+        while len(pending_instances) != 0:
             time.sleep(10)
-            for instance in created_instances:
+
+            for instance in pending_instances:
                 instance = self.nv_client.servers.get(instance.id)
 
                 if instance.status == 'ACTIVE':
                     LOG.info('Instance %s (%s) is ACTIVE', instance.name,
                              instance.id)
-                    i += 1
+                    pending_instances.remove(instance.id)
                 elif instance.status == 'ERROR':
                     LOG.critical('Instance %s (%s) is ERROR', instance.name,
                                  instance.id)
