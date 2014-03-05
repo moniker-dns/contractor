@@ -163,8 +163,8 @@ class InstanceTask(NovaTask):
         while len(pending_instances) != 0:
             time.sleep(10)
 
-            for instance in pending_instances:
-                instance = self.nv_client.servers.get(instance.id)
+            for instance_id in pending_instances:
+                instance = self.nv_client.servers.get(instance_id)
 
                 if instance.status == 'ACTIVE':
                     LOG.info('Instance %s (%s) is ACTIVE', instance.name,
