@@ -7,6 +7,12 @@ python-neutronclient>=2.3.0,<3
 python-novaclient>=2.15.0
 python-keystoneclient>=0.4.1
 stevedore
+iso8601
+requests
+prettytable
+pycrypto
+ecdsa
+oslo.utils
 
 # Extras
 py_sdag2

@@ -17,14 +17,15 @@ from __future__ import absolute_import
 from contractor.openstack.common import log as logging
 from contractor import runner
 from oslo.config import cfg
-
+import sys
 
 CONF = cfg.CONF
 CONF.set_default('debug', True)
 CONF.set_default('verbose', True)
 
-
-def main(*args):
+def main():
+    environment = str(sys.argv[1])
+    config = str(sys.argv[2]) if len(sys.argv) > 2 else 'contractor.json'
     logging.setup('contractor')
-    r = runner.Runner(config='contractor.json', environment='rnd')
+    r = runner.Runner(config=config, environment=environment)
     r.execute()
